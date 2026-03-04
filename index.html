@@ -79,7 +79,7 @@
     <script>
         const tg = window.Telegram.WebApp;
         const userId = tg.initDataUnsafe?.user?.id || 12345; // Если открыто не в ТГ, используем тестовый ID
-        const API_URL = "http://127.0.0.1:8000"; // Твой локальный FastAPI
+        const API_URL = "http://0.0.0.0:8080"; // Твой локальный FastAPI
 
         tg.expand(); // Расширить на весь экран
 
