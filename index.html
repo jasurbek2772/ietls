@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IELTS Challenge</title>
+    <title>IELTS 30-Day Reading</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -21,7 +21,6 @@
             display: flex; flex-direction: column; align-items: center;
         }
 
-        /* Сетка дней */
         .grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -32,50 +31,47 @@
             aspect-ratio: 1/1; background: #edf2f7; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             font-weight: bold; cursor: pointer; transition: 0.2s;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .day-card.completed { background-color: var(--success-color); color: white; }
 
-        /* Модальное окно (Инфо-панель) */
+        /* Модальная панель */
         #details-panel {
-            display: none; /* По умолчанию скрыто */
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; position: fixed; top: 0; left: 0; 
+            width: 100%; height: 100%;
             background: var(--tg-theme-bg-color);
-            z-index: 100; padding: 20px; box-sizing: border-box;
-            overflow-y: auto;
+            z-index: 100; padding: 25px; box-sizing: border-box;
         }
 
         .close-btn {
-            background: #e2e8f0; border: none; padding: 10px 20px;
-            border-radius: 8px; font-weight: bold; margin-bottom: 20px;
+            background: #f1f5f9; border: none; padding: 12px 20px;
+            border-radius: 10px; font-weight: bold; margin-bottom: 30px;
+            color: var(--tg-theme-text-color);
         }
 
-        .video-container { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; margin-bottom: 20px; }
-        
         .file-link {
-            display: block; background: #3182ce; color: white;
-            padding: 15px; border-radius: 10px; text-decoration: none;
-            margin-bottom: 10px; text-align: center; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--primary-color); color: white;
+            padding: 18px; border-radius: 12px; text-decoration: none;
+            margin-bottom: 12px; font-weight: bold; font-size: 1rem;
         }
 
-        #status { margin-top: 20px; opacity: 0.7; }
+        .file-link.video-btn { background: #e53e3e; } /* Красный для видео */
+
+        #status { margin-top: 20px; opacity: 0.6; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
-    <h1>🚀 IELTS 30-Day Reading</h1>
+    <h1>🚀 IELTS Challenge</h1>
     <div class="grid" id="grid"></div>
-    <p id="status">Loading...</p>
+    <p id="status">Syncing with server...</p>
 
     <div id="details-panel">
-        <button class="close-btn" onclick="closePanel()">← Назад</button>
-        <h2 id="panel-title">Day 1</h2>
-        
-        <div id="video-content">
-            </div>
-
-        <div id="files-content">
-            </div>
+        <button class="close-btn" onclick="closePanel()">← Back to Schedule</button>
+        <h2 id="panel-title" style="margin-bottom: 25px;">Day 1</h2>
+        <div id="files-content"></div>
     </div>
 
     <script>
@@ -83,32 +79,28 @@
         const userId = tg.initDataUnsafe?.user?.id || 12345;
         const API_URL = "https://fastapi.nomadhost.xyz";
 
-        // ДАННЫЕ ДЛЯ КАЖДОГО ДНЯ
-        const dayContent = {
-            1: {
-                
+        // Генерация ссылок на основе твоего списка
+        const dayContent = {};
+        for (let i = 1; i <= 30; i++) {
+            // Видео ID идет: 6, 7, 8, 10, 11... (пропуская 9, 22 и тд по твоему списку)
+            const videoIds = [6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37];
+            const baseFileId = 13 + (i - 1) * 2; // Шаг 13, 15, 17...
+
+            dayContent[i] = {
                 files: [
-                    { name: "video", url: "https://t.me/c/1808312605/6" },
-                    { name: "📄 Reading Passage (PDF)", url: "https://t.me/c/3823822743/13" },
-                    { name: "📝 Vocabulary List", url: "https://t.me/c/3823822743/14" }
+                    { name: "📺 Watch Video Tutorial", url: `https://t.me/c/1808312605/${videoIds[i-1]}`, type: 'video' },
+                    { name: "📄 Reading Passage (PDF)", url: `https://t.me/c/3823822743/${baseFileId}`, type: 'pdf' },
+                    { name: "📝 Vocabulary List", url: `https://t.me/c/3823822743/${baseFileId + 1}`, type: 'pdf' }
                 ]
-            },
-            2: {
-                video: "https://www.youtube.com/embed/another-video",
-                files: [
-                    { name: "📄 Day 2 Task", url: "#" },
-                    { name: "📝 Answers", url: "#" }
-                ]
-            }
-            // Добавь остальные дни по аналогии
-        };
+            };
+        }
 
         async function loadProgress() {
             try {
                 const response = await fetch(`${API_URL}/progress/${userId}`);
                 const data = await response.json();
                 renderGrid(data.completed);
-                document.getElementById('status').innerText = `Completed: ${data.completed.length} / 30 days`;
+                document.getElementById('status').innerText = `Progress: ${data.completed.length} / 30 days`;
             } catch (e) { console.error(e); }
         }
 
@@ -124,42 +116,26 @@
             }
         }
 
-        // Открытие панели
-        async function showDayDetails(day) {
+        function showDayDetails(day) {
             const content = dayContent[day];
-            if (!content) {
-                alert("Контент для этого дня еще не загружен!");
-                return;
-            }
-
-            // Заполняем данные
-            document.getElementById('panel-title').innerText = `Day ${day} Content`;
+            document.getElementById('panel-title').innerText = `Day ${day} Materials`;
             
-            // Видео
-            document.getElementById('video-content').innerHTML = `
-                <iframe class="video-container" src="${content.video}" frameborder="0" allowfullscreen></iframe>
-            `;
-
-            // Файлы
-            let filesHtml = '';
+            let html = '';
             content.files.forEach(file => {
-                filesHtml += `<a href="${file.url}" class="file-link" target="_blank">${file.name}</a>`;
+                const extraClass = file.type === 'video' ? 'video-btn' : '';
+                html += `<a href="${file.url}" class="file-link ${extraClass}" target="_blank">${file.name}</a>`;
             });
-            document.getElementById('files-content').innerHTML = filesHtml;
-
-            // Показываем панель
+            
+            document.getElementById('files-content').innerHTML = html;
             document.getElementById('details-panel').style.display = 'block';
 
-            // Отмечаем как выполненное в базе
-            try {
-                await fetch(`${API_URL}/complete/${userId}/${day}`, { method: 'POST' });
-                loadProgress(); // Обновляем сетку на фоне
-            } catch (e) { console.error(e); }
+            // Сохраняем прогресс
+            fetch(`${API_URL}/complete/${userId}/${day}`, { method: 'POST' })
+                .then(() => loadProgress());
         }
 
         function closePanel() {
             document.getElementById('details-panel').style.display = 'none';
-            document.getElementById('video-content').innerHTML = ''; // Останавливаем видео при закрытии
         }
 
         tg.expand();
