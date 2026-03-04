@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IELTS Reading Challenge</title>
+    <title>IELTS Challenge</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -15,124 +14,154 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, sans-serif;
             background-color: var(--tg-theme-bg-color);
             color: var(--tg-theme-text-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
         }
 
-        h1 { font-size: 1.5rem; margin-bottom: 20px; }
-
+        /* Сетка дней */
         .grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr); /* 4 колонки */
-            gap: 12px;
-            width: 100%;
-            max-width: 400px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px; width: 100%; max-width: 400px;
         }
 
         .day-card {
-            aspect-ratio: 1/1;
-            background: #edf2f7;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: 2px solid transparent;
-            -webkit-tap-highlight-color: transparent;
+            aspect-ratio: 1/1; background: #edf2f7; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; cursor: pointer; transition: 0.2s;
         }
 
-        .day-card:active { transform: scale(0.9); }
+        .day-card.completed { background-color: var(--success-color); color: white; }
 
-        /* Стиль для пройденного дня */
-        .day-card.completed {
-            background-color: var(--success-color);
-            color: white;
-            box-shadow: 0 4px 10px rgba(72, 187, 120, 0.3);
+        /* Модальное окно (Инфо-панель) */
+        #details-panel {
+            display: none; /* По умолчанию скрыто */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--tg-theme-bg-color);
+            z-index: 100; padding: 20px; box-sizing: border-box;
+            overflow-y: auto;
         }
 
-        /* Стиль для текущего/выбранного дня */
-        .day-card.active {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
+        .close-btn {
+            background: #e2e8f0; border: none; padding: 10px 20px;
+            border-radius: 8px; font-weight: bold; margin-bottom: 20px;
         }
 
-        #status { margin-top: 20px; font-size: 0.9rem; opacity: 0.7; }
+        .video-container { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; margin-bottom: 20px; }
+        
+        .file-link {
+            display: block; background: #3182ce; color: white;
+            padding: 15px; border-radius: 10px; text-decoration: none;
+            margin-bottom: 10px; text-align: center; font-weight: bold;
+        }
+
+        #status { margin-top: 20px; opacity: 0.7; }
     </style>
 </head>
 <body>
 
-    <h1>🚀 IELTS 30-Day Reading23</h1>
-    
-    <div class="grid" id="grid">
-        </div>
+    <h1>🚀 IELTS 30-Day Reading</h1>
+    <div class="grid" id="grid"></div>
+    <p id="status">Loading...</p>
 
-    <p id="status">Loading progress...</p>
+    <div id="details-panel">
+        <button class="close-btn" onclick="closePanel()">← Назад</button>
+        <h2 id="panel-title">Day 1</h2>
+        
+        <div id="video-content">
+            </div>
+
+        <div id="files-content">
+            </div>
+    </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        const userId = tg.initDataUnsafe?.user?.id || 12345; // Если открыто не в ТГ, используем тестовый ID
-       const API_URL = "https://fastapi.nomadhost.xyz";
+        const userId = tg.initDataUnsafe?.user?.id || 12345;
+        const API_URL = "https://fastapi.nomadhost.xyz";
 
-        tg.expand(); // Расширить на весь экран
+        // ДАННЫЕ ДЛЯ КАЖДОГО ДНЯ
+        const dayContent = {
+            1: {
+                video: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Пример видео
+                files: [
+                    { name: "📄 Reading Passage (PDF)", url: "https://example.com/day1-task.pdf" },
+                    { name: "📝 Vocabulary List", url: "https://example.com/day1-voc.pdf" }
+                ]
+            },
+            2: {
+                video: "https://www.youtube.com/embed/another-video",
+                files: [
+                    { name: "📄 Day 2 Task", url: "#" },
+                    { name: "📝 Answers", url: "#" }
+                ]
+            }
+            // Добавь остальные дни по аналогии
+        };
 
-        // Функция загрузки прогресса из БД
         async function loadProgress() {
             try {
                 const response = await fetch(`${API_URL}/progress/${userId}`);
                 const data = await response.json();
                 renderGrid(data.completed);
                 document.getElementById('status').innerText = `Completed: ${data.completed.length} / 30 days`;
-            } catch (e) {
-                console.error("API Error:", e);
-                renderGrid([]); // Если сервер не отвечает, рисуем пустую сетку
-                document.getElementById('status').innerText = "Offline Mode (Server not found)";
-            }
+            } catch (e) { console.error(e); }
         }
 
-        // Функция отрисовки сетки
         function renderGrid(completedDays) {
             const grid = document.getElementById('grid');
-            grid.innerHTML = ''; // Очистить
-
+            grid.innerHTML = '';
             for (let i = 1; i <= 30; i++) {
                 const card = document.createElement('div');
-                card.className = 'day-card';
-                if (completedDays.includes(i)) card.classList.add('completed');
+                card.className = 'day-card' + (completedDays.includes(i) ? ' completed' : '');
                 card.innerText = i;
-
-                card.onclick = () => handleDayClick(i);
+                card.onclick = () => showDayDetails(i);
                 grid.appendChild(card);
             }
         }
 
-        // Клик по дню
-        async function handleDayClick(day) {
-            // 1. Отправляем запрос на сервер, чтобы сохранить прогресс
+        // Открытие панели
+        async function showDayDetails(day) {
+            const content = dayContent[day];
+            if (!content) {
+                alert("Контент для этого дня еще не загружен!");
+                return;
+            }
+
+            // Заполняем данные
+            document.getElementById('panel-title').innerText = `Day ${day} Content`;
+            
+            // Видео
+            document.getElementById('video-content').innerHTML = `
+                <iframe class="video-container" src="${content.video}" frameborder="0" allowfullscreen></iframe>
+            `;
+
+            // Файлы
+            let filesHtml = '';
+            content.files.forEach(file => {
+                filesHtml += `<a href="${file.url}" class="file-link" target="_blank">${file.name}</a>`;
+            });
+            document.getElementById('files-content').innerHTML = filesHtml;
+
+            // Показываем панель
+            document.getElementById('details-panel').style.display = 'block';
+
+            // Отмечаем как выполненное в базе
             try {
                 await fetch(`${API_URL}/complete/${userId}/${day}`, { method: 'POST' });
-            } catch (e) { console.error("Could not save progress"); }
-
-            // 2. Открываем ссылку на задание (пример ссылок из твоего сообщения)
-            // Здесь можно сделать массив ссылок, но для теста просто откроем одну:
-            const taskLink = "https://t.me/c/1808312605/6"; 
-            
-            // В Telegram Mini App лучше использовать tg.openLink
-            tg.openLink(taskLink);
-
-            // Перерисовываем сетку, чтобы день стал зеленым
-            loadProgress();
+                loadProgress(); // Обновляем сетку на фоне
+            } catch (e) { console.error(e); }
         }
 
-        // Запуск при загрузке страницы
+        function closePanel() {
+            document.getElementById('details-panel').style.display = 'none';
+            document.getElementById('video-content').innerHTML = ''; // Останавливаем видео при закрытии
+        }
+
+        tg.expand();
         loadProgress();
     </script>
 </body>
